@@ -1,6 +1,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <fstream>
+#include <memory>
 
 #include "src/proto/test.pb.h"
 #include "src/json/json/json.h"
@@ -50,7 +51,7 @@ void saveImage(Json::Value &value, std::map<string, int> &map);
 void saveType(Json::Value &value, std::map<string, int> &labelMap, ImageInfo &info);
 
 std::vector<ImgPoint> getPoints(Json::Value &value);
-
+std::string getImageType(int number);
 
 
 
@@ -94,15 +95,22 @@ void saveType(Json::Value &type, std::map<string, int> &labelMap, ImageInfo &inf
     datum.set_height(HEIGHT);
     datum.set_width(WIDTH);
     datum.set_label(labelMap[label]);
+    std::unique_ptr<uint8_t> data(new uint8_t[WIDTH*HEIGHT*3]);
+    uint8_t * dataIter;
     for (auto &point: points) {
         Mat subImg = info.subImg(point.x, point.y, WIDTH, HEIGHT);
+        std::cout << getImageType(subImg.type()) << std::endl;
         std::cout << subImg.size() << std::endl;
-        std::vector<uint8_t > vectorData;
-        for (MatIterator_<uint8_t > iter = subImg.begin(); iter != subImg.end(); iter++){
-            vectorData.push_back(*iter);
+        dataIter = data.get();
+        for(auto iter = subImg.begin<Vec3b>(); iter != subImg.end<Vec3b>(); iter++){
+            *dataIter = (*iter).val[0];
+            dataIter++;
+            *dataIter = (*iter).val[1];
+            dataIter++;
+            *dataIter = (*iter).val[2];
+            dataIter++;
         }
-        std::cout << vectorData.size() << std::endl;
-        datum.set_data(subImg.data, subImg.cols * subImg.rows);
+        datum.set_data(data.get(), WIDTH*HEIGHT*3);
     }
 }
 
@@ -112,4 +120,46 @@ std::vector<ImgPoint> getPoints(Json::Value &value) {
         result.emplace_back(point);
     }
     return result;
+}
+
+std::string getImageType(int number)
+{
+    // find type
+    int imgTypeInt = number%8;
+    std::string imgTypeString;
+
+    switch (imgTypeInt)
+    {
+        case 0:
+            imgTypeString = "8U";
+            break;
+        case 1:
+            imgTypeString = "8S";
+            break;
+        case 2:
+            imgTypeString = "16U";
+            break;
+        case 3:
+            imgTypeString = "16S";
+            break;
+        case 4:
+            imgTypeString = "32S";
+            break;
+        case 5:
+            imgTypeString = "32F";
+            break;
+        case 6:
+            imgTypeString = "64F";
+            break;
+        default:
+            break;
+    }
+
+    // find channel
+    int channel = (number/8) + 1;
+
+    std::stringstream type;
+    type<<"CV_"<<imgTypeString<<"C"<<channel;
+
+    return type.str();
 }
