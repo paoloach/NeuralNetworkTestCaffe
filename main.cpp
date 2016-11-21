@@ -2,6 +2,7 @@
 #include <opencv2/opencv.hpp>
 #include <fstream>
 #include <memory>
+#include <lmdb.h>
 
 #include "src/proto/test.pb.h"
 #include "src/json/json/json.h"
@@ -35,6 +36,7 @@ public:
         rect.width = value["right"].asInt()-rect.x;
         rect.height= value["bottom"].asInt()-rect.y;
         img = imread(fileName);
+        img.convertTo(img,CV_32F);
     }
 
     Mat subImg(int x, int y, int w, int h){
@@ -46,9 +48,10 @@ public:
 
 };
 
-void saveImage(Json::Value &value, std::map<string, int> &map);
+void saveImage(Json::Value &value, std::map<string, int> &map, MDB_txn *env, MDB_dbi  &dbi, int &i);
 
-void saveType(Json::Value &value, std::map<string, int> &labelMap, ImageInfo &info);
+void saveType(Json::Value &value, std::map<string, int> &labelMap, ImageInfo info, MDB_txn *txn, MDB_dbi  &dbi,
+              int &counter);
 
 std::vector<ImgPoint> getPoints(Json::Value &value);
 std::string getImageType(int number);
@@ -58,8 +61,8 @@ std::string getImageType(int number);
 int main(int argc, char **argv) {
     std::map<string, int> mapType;
 
-    if (argc != 2) {
-        std::cerr << "need data file" << std::endl;
+    if (argc != 3) {
+        std::cerr << "need data file and output file" << std::endl;
         exit(-1);
     }
 
@@ -68,41 +71,72 @@ int main(int argc, char **argv) {
 
     iStream >> root;
 
+    MDB_env *env;
+    mdb_env_create(&env);
+    mdb_env_open(env, argv[2], 0, 0664);
+    MDB_dbi dbi;
+    MDB_txn *txn;
+    mdb_txn_begin(env, NULL, 0, &txn);
+    int counter=0;
+    mdb_open(txn, NULL, 0, &dbi);
+
     for (auto &child: root) {
-        saveImage(child, mapType);
+        saveImage(child, mapType, txn, dbi, counter);
     }
+    mdb_txn_commit(txn);
+    std::cout << mapType.size() << " labels" << std::endl;
+    std::cout << counter << " images " << std::endl;
+
+
+//    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
+//    dbi = lmdb::dbi::open(rtxn, nullptr);
+//    auto cursor = lmdb::cursor::open(rtxn, dbi);
+//    std::string key, value;
+//    while (cursor.get(key, value, MDB_NEXT)) {
+//        genSamples::Datum  datum;
+//        datum.ParseFromString(value);
+//        std::cout << datum.channels() << std::endl;
+//    }
+//    cursor.close();
 
     return 0;
 }
 
-void saveImage(Json::Value &value, std::map<string, int> &mapType) {
+void saveImage(Json::Value &value, std::map<string, int> &mapType, MDB_txn *txn, MDB_dbi  &dbi, int &counter) {
     ImageInfo imageInfo(value);
+
 
     auto types = value["type"];
     for (auto &type: types) {
-        saveType(type, mapType, imageInfo);
+        saveType(type, mapType, imageInfo, txn, dbi, counter);
     }
+   // txn.reset();
 }
 
-void saveType(Json::Value &type, std::map<string, int> &labelMap, ImageInfo &info) {
-    genSamples::Datum datum;
+void saveType(Json::Value &type, std::map<string, int> &labelMap, ImageInfo info, MDB_txn *txn, MDB_dbi  &dbi,
+              int &counter) {
+
+
     auto label = type.begin().key().asString();
     auto points = getPoints(*type.begin());
     if (labelMap.count(label) == 0) {
         labelMap[label] = labelMap.size() + 1;
     }
-    datum.set_channels(3);
-    datum.set_height(HEIGHT);
-    datum.set_width(WIDTH);
-    datum.set_label(labelMap[label]);
+
     std::unique_ptr<uint8_t> data(new uint8_t[WIDTH*HEIGHT*3]);
     uint8_t * dataIter;
     for (auto &point: points) {
-        Mat subImg = info.subImg(point.x, point.y, WIDTH, HEIGHT);
-        std::cout << getImageType(subImg.type()) << std::endl;
-        std::cout << subImg.size() << std::endl;
+        genSamples::Datum datum;
+        datum.set_channels(3);
+        datum.set_height(HEIGHT);
+        datum.set_width(WIDTH);
+        datum.set_label(labelMap[label]);
+        Mat subImg = info.subImg(point.x-HALF_WIDTH, point.y-HALF_HEIGHT, WIDTH, HEIGHT);
         dataIter = data.get();
-        for(auto iter = subImg.begin<Vec3b>(); iter != subImg.end<Vec3b>(); iter++){
+        for(auto iter = subImg.begin<Vec3f>(); iter != subImg.end<Vec3b>(); iter++){
+//            datum.add_float_data((*iter).val[0]);
+//            datum.add_float_data((*iter).val[1]);
+//            datum.add_float_data((*iter).val[2]);
             *dataIter = (*iter).val[0];
             dataIter++;
             *dataIter = (*iter).val[1];
@@ -111,7 +145,21 @@ void saveType(Json::Value &type, std::map<string, int> &labelMap, ImageInfo &inf
             dataIter++;
         }
         datum.set_data(data.get(), WIDTH*HEIGHT*3);
+        string out;
+
+        bool error = datum.SerializeToString(&out);
+        MDB_val key, data;
+
+        key.mv_size = sizeof(int);
+        key.mv_data = &counter;
+
+        data.mv_size = out.size();
+        data.mv_data = const_cast<char *>(out.c_str());
+
+        mdb_put(txn, dbi, &key, &data, 0);
+        counter++;
     }
+
 }
 
 std::vector<ImgPoint> getPoints(Json::Value &value) {

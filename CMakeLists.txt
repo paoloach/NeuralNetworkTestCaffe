@@ -3,9 +3,19 @@ project(NeuralNetworkCaffeTest)
 
 include(cmake/Utils.cmake)
 include(cmake/ProtoBuf.cmake)
+#include(cmake/LMDBConfig.cmake)
 find_package(OpenCV COMPONENTS core highgui imgproc imgcodecs)
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories( '.')
+
+set(LMDB_DIR ./cmake)
+set(LMDB++_DIR ./cmake)
+
+find_package(LMDB REQUIRED)
+find_package(LMDB++ REQUIRED)
+include_directories(SYSTEM ${LMDB++_INCLUDE_DIR})
+
+
 
 set(proto_files
         proto/test.proto)
@@ -22,6 +32,22 @@ set(SOURCE_FILES
         src/json/json/json.h
         src/json/json/json-forwards.h
         main.cpp)
-add_executable(NeuralNetworkCaffeTest ${SOURCE_FILES})
 
-target_link_libraries(NeuralNetworkCaffeTest ${PROTOBUF_LIBRARIES} ${OpenCV_LIBS})
+set(DUMP_IMPAGES_FILES
+        ${proto_srcs}
+        ${proto_hdrs}
+        src/DumpImages.cpp)
+add_executable(NeuralNetworkCaffeTest ${SOURCE_FILES})
+add_executable(DumpImages ${DUMP_IMPAGES_FILES})
+
+target_link_libraries(NeuralNetworkCaffeTest
+        ${PROTOBUF_LIBRARIES}
+        ${OpenCV_LIBS}
+        ${LMDB_LIBRARIES}
+        )
+
+target_link_libraries(DumpImages
+        ${PROTOBUF_LIBRARIES}
+        ${OpenCV_LIBS}
+        ${LMDB_LIBRARIES}
+        )
