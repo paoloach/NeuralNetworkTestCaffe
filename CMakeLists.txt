@@ -9,11 +9,9 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories( '.')
 
 set(LMDB_DIR ./cmake)
-set(LMDB++_DIR ./cmake)
 
 find_package(LMDB REQUIRED)
-find_package(LMDB++ REQUIRED)
-include_directories(SYSTEM ${LMDB++_INCLUDE_DIR})
+include_directories(SYSTEM ${LMDB_INCLUDE_DIR})
 
 
 

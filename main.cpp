@@ -88,18 +88,6 @@ int main(int argc, char **argv) {
     std::cout << mapType.size() << " labels" << std::endl;
     std::cout << counter << " images " << std::endl;
 
-
-//    auto rtxn = lmdb::txn::begin(env, nullptr, MDB_RDONLY);
-//    dbi = lmdb::dbi::open(rtxn, nullptr);
-//    auto cursor = lmdb::cursor::open(rtxn, dbi);
-//    std::string key, value;
-//    while (cursor.get(key, value, MDB_NEXT)) {
-//        genSamples::Datum  datum;
-//        datum.ParseFromString(value);
-//        std::cout << datum.channels() << std::endl;
-//    }
-//    cursor.close();
-
     return 0;
 }
 
@@ -122,9 +110,9 @@ string serialize(Mat &subImg, int32_t label) {
     datum.set_width(WIDTH);
     datum.set_label(label);
 
-    std::unique_ptr<uint8_t> data(new uint8_t[WIDTH * HEIGHT * 3]);
+    uint8_t *  data = new uint8_t[WIDTH * HEIGHT * 3];
     uint8_t *dataIter;
-    dataIter = data.get();
+    dataIter = data;
     for (auto iter = subImg.begin<Vec3b>(); iter != subImg.end<Vec3b>(); iter++) {
         *dataIter = (*iter).val[0];
         dataIter++;
@@ -133,7 +121,8 @@ string serialize(Mat &subImg, int32_t label) {
         *dataIter = (*iter).val[2];
         dataIter++;
     }
-    datum.set_data(data.get(), WIDTH * HEIGHT * 3);
+    datum.set_data(data, WIDTH * HEIGHT * 3);
+    delete []data;
     string out;
     datum.SerializeToString(&out);
     return out;
@@ -156,11 +145,12 @@ void saveType(Json::Value &type, std::map<string, int> &labelMap, ImageInfo info
     if (labelMap.count(label) == 0) {
         labelMap[label] = labelMap.size() + 1;
     }
-
-    std::uniform_int_distribution<> xDis(0, WIDTH);
-    std::uniform_int_distribution<> yDis(0, HEIGHT);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> xDis(0, WIDTH-1);
+    std::uniform_int_distribution<> yDis(0, HEIGHT-1);
     std::uniform_int_distribution<> colDis(0, 3);
-    std::uniform_int_distribution<> delta(-10, 10);
+    std::uniform_int_distribution<> deltaDis(-10, 10);
 
 
     for (auto &point: points) {
@@ -170,8 +160,14 @@ void saveType(Json::Value &type, std::map<string, int> &labelMap, ImageInfo info
         for (int i=0; i < 30; i++){
             Mat cloned = subImg.clone();
             for (int i = 0; i < 20;i++){
-                cloned.at<Vec3b>(yDis,xDis);
+                int y = yDis(gen);
+                int x = xDis(gen);
+                int col = colDis(gen);
+                int delta = deltaDis(gen);
+                cloned.at<cv::Vec3b>(y,x)[col] += delta;
             }
+            string out{serialize(cloned, labelMap[label])};
+            save(out, txn, dbi, counter);
         }
     }
 
