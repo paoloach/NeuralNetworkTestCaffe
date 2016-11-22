@@ -3,6 +3,7 @@
 #include <fstream>
 #include <memory>
 #include <lmdb.h>
+#include <random>
 
 #include "src/proto/test.pb.h"
 #include "src/json/json/json.h"
@@ -33,14 +34,14 @@ public:
         string fileName = value["file"].asString();
         rect.x = value["left"].asInt();
         rect.y = value["top"].asInt();
-        rect.width = value["right"].asInt()-rect.x;
-        rect.height= value["bottom"].asInt()-rect.y;
+        rect.width = value["right"].asInt() - rect.x;
+        rect.height = value["bottom"].asInt() - rect.y;
         img = imread(fileName);
-        img.convertTo(img,CV_32F);
+        img.convertTo(img, CV_32F);
     }
 
-    Mat subImg(int x, int y, int w, int h){
-        return img( cv::Rect(x,y,w,h));
+    Mat subImg(int x, int y, int w, int h) {
+        return img(cv::Rect(x, y, w, h));
     }
 
     Rect rect;
@@ -48,14 +49,14 @@ public:
 
 };
 
-void saveImage(Json::Value &value, std::map<string, int> &map, MDB_txn *env, MDB_dbi  &dbi, int &i);
+void saveImage(Json::Value &value, std::map<string, int> &map, MDB_txn *env, MDB_dbi &dbi, int &i);
 
-void saveType(Json::Value &value, std::map<string, int> &labelMap, ImageInfo info, MDB_txn *txn, MDB_dbi  &dbi,
+void saveType(Json::Value &value, std::map<string, int> &labelMap, ImageInfo info, MDB_txn *txn, MDB_dbi &dbi,
               int &counter);
 
 std::vector<ImgPoint> getPoints(Json::Value &value);
-std::string getImageType(int number);
 
+std::string getImageType(int number);
 
 
 int main(int argc, char **argv) {
@@ -77,7 +78,7 @@ int main(int argc, char **argv) {
     MDB_dbi dbi;
     MDB_txn *txn;
     mdb_txn_begin(env, NULL, 0, &txn);
-    int counter=0;
+    int counter = 0;
     mdb_open(txn, NULL, 0, &dbi);
 
     for (auto &child: root) {
@@ -102,7 +103,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void saveImage(Json::Value &value, std::map<string, int> &mapType, MDB_txn *txn, MDB_dbi  &dbi, int &counter) {
+void saveImage(Json::Value &value, std::map<string, int> &mapType, MDB_txn *txn, MDB_dbi &dbi, int &counter) {
     ImageInfo imageInfo(value);
 
 
@@ -110,54 +111,68 @@ void saveImage(Json::Value &value, std::map<string, int> &mapType, MDB_txn *txn,
     for (auto &type: types) {
         saveType(type, mapType, imageInfo, txn, dbi, counter);
     }
-   // txn.reset();
+    // txn.reset();
 }
 
-void saveType(Json::Value &type, std::map<string, int> &labelMap, ImageInfo info, MDB_txn *txn, MDB_dbi  &dbi,
+
+string serialize(Mat &subImg, int32_t label) {
+    genSamples::Datum datum;
+    datum.set_channels(3);
+    datum.set_height(HEIGHT);
+    datum.set_width(WIDTH);
+    datum.set_label(label);
+
+    std::unique_ptr<uint8_t> data(new uint8_t[WIDTH * HEIGHT * 3]);
+    uint8_t *dataIter;
+    dataIter = data.get();
+    for (auto iter = subImg.begin<Vec3b>(); iter != subImg.end<Vec3b>(); iter++) {
+        *dataIter = (*iter).val[0];
+        dataIter++;
+        *dataIter = (*iter).val[1];
+        dataIter++;
+        *dataIter = (*iter).val[2];
+        dataIter++;
+    }
+    datum.set_data(data.get(), WIDTH * HEIGHT * 3);
+    string out;
+    datum.SerializeToString(&out);
+    return out;
+}
+
+void save(string &dataToWrite, MDB_txn *txn, MDB_dbi &dbi, int &counter) {
+    MDB_val key, data;
+    key.mv_size = sizeof(int);
+    key.mv_data = &counter;
+    data.mv_size = dataToWrite.size();
+    data.mv_data = const_cast<char *>(dataToWrite.c_str());
+    mdb_put(txn, dbi, &key, &data, 0);
+    counter++;
+}
+
+void saveType(Json::Value &type, std::map<string, int> &labelMap, ImageInfo info, MDB_txn *txn, MDB_dbi &dbi,
               int &counter) {
-
-
     auto label = type.begin().key().asString();
     auto points = getPoints(*type.begin());
     if (labelMap.count(label) == 0) {
         labelMap[label] = labelMap.size() + 1;
     }
 
-    std::unique_ptr<uint8_t> data(new uint8_t[WIDTH*HEIGHT*3]);
-    uint8_t * dataIter;
+    std::uniform_int_distribution<> xDis(0, WIDTH);
+    std::uniform_int_distribution<> yDis(0, HEIGHT);
+    std::uniform_int_distribution<> colDis(0, 3);
+    std::uniform_int_distribution<> delta(-10, 10);
+
+
     for (auto &point: points) {
-        genSamples::Datum datum;
-        datum.set_channels(3);
-        datum.set_height(HEIGHT);
-        datum.set_width(WIDTH);
-        datum.set_label(labelMap[label]);
-        Mat subImg = info.subImg(point.x-HALF_WIDTH, point.y-HALF_HEIGHT, WIDTH, HEIGHT);
-        dataIter = data.get();
-        for(auto iter = subImg.begin<Vec3f>(); iter != subImg.end<Vec3b>(); iter++){
-//            datum.add_float_data((*iter).val[0]);
-//            datum.add_float_data((*iter).val[1]);
-//            datum.add_float_data((*iter).val[2]);
-            *dataIter = (*iter).val[0];
-            dataIter++;
-            *dataIter = (*iter).val[1];
-            dataIter++;
-            *dataIter = (*iter).val[2];
-            dataIter++;
+        Mat subImg = info.subImg(point.x - HALF_WIDTH, point.y - HALF_HEIGHT, WIDTH, HEIGHT);
+        string out{serialize(subImg, labelMap[label])};
+        save(out, txn, dbi, counter);
+        for (int i=0; i < 30; i++){
+            Mat cloned = subImg.clone();
+            for (int i = 0; i < 20;i++){
+                cloned.at<Vec3b>(yDis,xDis);
+            }
         }
-        datum.set_data(data.get(), WIDTH*HEIGHT*3);
-        string out;
-
-        bool error = datum.SerializeToString(&out);
-        MDB_val key, data;
-
-        key.mv_size = sizeof(int);
-        key.mv_data = &counter;
-
-        data.mv_size = out.size();
-        data.mv_data = const_cast<char *>(out.c_str());
-
-        mdb_put(txn, dbi, &key, &data, 0);
-        counter++;
     }
 
 }
@@ -170,14 +185,12 @@ std::vector<ImgPoint> getPoints(Json::Value &value) {
     return result;
 }
 
-std::string getImageType(int number)
-{
+std::string getImageType(int number) {
     // find type
-    int imgTypeInt = number%8;
+    int imgTypeInt = number % 8;
     std::string imgTypeString;
 
-    switch (imgTypeInt)
-    {
+    switch (imgTypeInt) {
         case 0:
             imgTypeString = "8U";
             break;
@@ -204,10 +217,10 @@ std::string getImageType(int number)
     }
 
     // find channel
-    int channel = (number/8) + 1;
+    int channel = (number / 8) + 1;
 
     std::stringstream type;
-    type<<"CV_"<<imgTypeString<<"C"<<channel;
+    type << "CV_" << imgTypeString << "C" << channel;
 
     return type.str();
 }

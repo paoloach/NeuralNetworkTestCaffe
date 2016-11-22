@@ -10,7 +10,7 @@ layer {
 
   data_param {
     source: "../data.mbd"
-    batch_size: 200
+    batch_size: 20
     backend: LMDB
   }
 }
@@ -25,24 +25,67 @@ layer {
 
   data_param {
     source: "../data.mbd"
-    batch_size: 200
+    batch_size: 20
     backend: LMDB
   }
 }
 
 layer {
+  name: "conv1"
+  type: "Convolution"
+  bottom: "data"
+  top: "conv1"
+  param {
+    lr_mult: 0.1
+  }
+  param {
+    lr_mult: 0.2
+  }
+  convolution_param {
+    num_output: 15
+    pad: 2
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "gaussian"
+      std: 0.0001
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "pool1"
+  type: "Pooling"
+  bottom: "conv1"
+  top: "pool1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "pool1"
+  top: "pool1"
+}
+
+layer {
   name: "ip1"
   type: "InnerProduct"
-  bottom: "data"
+  bottom: "pool1"
   top: "ip1"
   param {
-    lr_mult: 1
+    lr_mult: 0.1
   }
   param {
-    lr_mult: 2
+    lr_mult: 0.2
   }
   inner_product_param {
-    num_output: 100
+    num_output: 64
     weight_filler {
       type: "gaussian"
       std: 0.1
@@ -52,20 +95,19 @@ layer {
     }
   }
 }
-
 layer {
   name: "ip2"
   type: "InnerProduct"
   bottom: "ip1"
   top: "ip2"
   param {
-    lr_mult: 1
+    lr_mult: 0.1
   }
   param {
-    lr_mult: 2
+    lr_mult: 0.2
   }
   inner_product_param {
-    num_output: 6
+    num_output: 10
     weight_filler {
       type: "gaussian"
       std: 0.1
@@ -75,7 +117,6 @@ layer {
     }
   }
 }
-
 layer {
   name: "accuracy"
   type: "Accuracy"
@@ -89,7 +130,7 @@ layer {
 layer {
   name: "loss"
   type: "SoftmaxWithLoss"
-  bottom: "ip1"
+  bottom: "ip2"
   bottom: "label"
   top: "loss"
 }
