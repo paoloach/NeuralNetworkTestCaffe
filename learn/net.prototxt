@@ -10,7 +10,7 @@ layer {
 
   data_param {
     source: "../data.mbd"
-    batch_size: 20
+    batch_size: 100
     backend: LMDB
   }
 }

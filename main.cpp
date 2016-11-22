@@ -15,7 +15,8 @@ constexpr int HALF_HEIGHT = HEIGHT / 2;
 
 using namespace cv;
 using std::string;
-
+using std::cout;
+using std::endl;
 
 class ImgPoint {
 public:
@@ -37,7 +38,6 @@ public:
         rect.width = value["right"].asInt() - rect.x;
         rect.height = value["bottom"].asInt() - rect.y;
         img = imread(fileName);
-        img.convertTo(img, CV_32F);
     }
 
     Mat subImg(int x, int y, int w, int h) {
@@ -49,7 +49,7 @@ public:
 
 };
 
-void saveImage(Json::Value &value, std::map<string, int> &map, MDB_txn *env, MDB_dbi &dbi, int &i);
+void saveImage(Json::Value &value, std::map<string, int> map, MDB_txn *txn, MDB_dbi dbi, MDB_env *env, int &counter);
 
 void saveType(Json::Value &value, std::map<string, int> &labelMap, ImageInfo info, MDB_txn *txn, MDB_dbi &dbi,
               int &counter);
@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
     mdb_open(txn, NULL, 0, &dbi);
 
     for (auto &child: root) {
-        saveImage(child, mapType, txn, dbi, counter);
+        saveImage(child, mapType, txn, dbi, env, counter);
     }
     mdb_txn_commit(txn);
     std::cout << mapType.size() << " labels" << std::endl;
@@ -91,15 +91,16 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void saveImage(Json::Value &value, std::map<string, int> &mapType, MDB_txn *txn, MDB_dbi &dbi, int &counter) {
+void saveImage(Json::Value &value, std::map<string, int> mapType, MDB_txn *txn, MDB_dbi dbi, MDB_env *env, int & counter) {
     ImageInfo imageInfo(value);
 
 
     auto types = value["type"];
     for (auto &type: types) {
         saveType(type, mapType, imageInfo, txn, dbi, counter);
+        mdb_txn_commit(txn);
+        mdb_txn_begin(env, NULL, 0, &txn);
     }
-    // txn.reset();
 }
 
 
@@ -110,9 +111,9 @@ string serialize(Mat &subImg, int32_t label) {
     datum.set_width(WIDTH);
     datum.set_label(label);
 
-    uint8_t *  data = new uint8_t[WIDTH * HEIGHT * 3];
+    std::unique_ptr<uint8_t >  data { new uint8_t[WIDTH * HEIGHT * 3]};
     uint8_t *dataIter;
-    dataIter = data;
+    dataIter = data.get();
     for (auto iter = subImg.begin<Vec3b>(); iter != subImg.end<Vec3b>(); iter++) {
         *dataIter = (*iter).val[0];
         dataIter++;
@@ -121,8 +122,7 @@ string serialize(Mat &subImg, int32_t label) {
         *dataIter = (*iter).val[2];
         dataIter++;
     }
-    datum.set_data(data, WIDTH * HEIGHT * 3);
-    delete []data;
+    datum.set_data(data.get(), WIDTH * HEIGHT * 3);
     string out;
     datum.SerializeToString(&out);
     return out;
@@ -157,17 +157,33 @@ void saveType(Json::Value &type, std::map<string, int> &labelMap, ImageInfo info
         Mat subImg = info.subImg(point.x - HALF_WIDTH, point.y - HALF_HEIGHT, WIDTH, HEIGHT);
         string out{serialize(subImg, labelMap[label])};
         save(out, txn, dbi, counter);
-        for (int i=0; i < 30; i++){
+        genSamples::Datum datum;
+        datum.ParseFromString(out);
+        cout << datum.width() << "x" << datum.height() << "x" << datum.channels() << endl;
+        for (int i=0; i < 20; i++){
             Mat cloned = subImg.clone();
+            cout << "size: " << cloned.size[0] << "x" << cloned.size[1] << endl;
             for (int i = 0; i < 20;i++){
                 int y = yDis(gen);
                 int x = xDis(gen);
-                int col = colDis(gen);
+                int colIndex = colDis(gen);
                 int delta = deltaDis(gen);
-                cloned.at<cv::Vec3b>(y,x)[col] += delta;
+                int col = cloned.at<cv::Vec3b>(y,x)[colIndex];
+                if (col + delta < 0){
+                    col = 0;
+                } else if (col + delta > 255){
+                    col = 255;
+                } else {
+                    col += delta;
+                }
+                cloned.at<cv::Vec3b>(y,x)[colIndex] = col;
             }
             string out{serialize(cloned, labelMap[label])};
             save(out, txn, dbi, counter);
+
+            genSamples::Datum datum;
+            datum.ParseFromString(out);
+            cout << datum.width() << "x" << datum.height() << "x" << datum.channels() << endl;
         }
     }
 
