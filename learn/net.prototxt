@@ -24,8 +24,8 @@ layer {
   }
 
   data_param {
-    source: "../data.mbd"
-    batch_size: 20
+    source: "../data.mbd.test"
+    batch_size: 1000
     backend: LMDB
   }
 }
@@ -95,32 +95,11 @@ layer {
     }
   }
 }
-layer {
-  name: "ip2"
-  type: "InnerProduct"
-  bottom: "ip1"
-  top: "ip2"
-  param {
-    lr_mult: 0.1
-  }
-  param {
-    lr_mult: 0.2
-  }
-  inner_product_param {
-    num_output: 10
-    weight_filler {
-      type: "gaussian"
-      std: 0.1
-    }
-    bias_filler {
-      type: "constant"
-    }
-  }
-}
+
 layer {
   name: "accuracy"
   type: "Accuracy"
-  bottom: "ip2"
+  bottom: "ip1"
   bottom: "label"
   top: "accuracy"
   include {
@@ -130,7 +109,7 @@ layer {
 layer {
   name: "loss"
   type: "SoftmaxWithLoss"
-  bottom: "ip2"
+  bottom: "ip1"
   bottom: "label"
   top: "loss"
 }

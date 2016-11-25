@@ -402,6 +402,7 @@
  "top": 103,
  "right": 933,
  "bottom": 523,
+ "test": 1,
  "type": [ {
           "circleYellow" :
                  {

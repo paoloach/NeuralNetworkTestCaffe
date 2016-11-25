@@ -34,7 +34,7 @@ int main(int argc, char **argv){
     mdb_cursor_open(txn,dbi,&cursor);
     genSamples::Datum datum;
     int count=0;
-    while (count < 204){
+    while (true){
         int next = mdb_cursor_get(cursor,&key,&val, MDB_NEXT);
         if (next < 0)
             break;
@@ -42,7 +42,7 @@ int main(int argc, char **argv){
         auto strDatum = string(static_cast<const char*>(val.mv_data), val.mv_size);
         datum.ParseFromString(strDatum);
         cout << datum.width() << "x" << datum.height() << "x" << datum.channels() << endl;
-        string fileName = string(argv[2]) + "/img" + std::to_string(count)+".png";
+        string fileName = string(argv[2]) + "/img" + std::to_string(count)+"-" + std::to_string(datum.label())+".png";
         cout << "size: " << datum.data().size() << endl;
         const char * dataIter = datum.data().c_str();
         Size size(datum.width(),datum.height());
