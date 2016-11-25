@@ -34,12 +34,17 @@ set(SOURCE_FILES
 set(DUMP_IMPAGES_FILES
         ${proto_srcs}
         ${proto_hdrs}
-        src/DumpImages.cpp)
+        src/DumpImages.cpp src/MakeSamples.cpp)
+
+set(MAKE_SAPLES
+        src/MakeSamples.cpp
+        )
 
 set (TEST_FIND src/TestFindRect.cpp src/proto/LinePoint.h)
 add_executable(NeuralNetworkCaffeTest ${SOURCE_FILES})
 add_executable(DumpImages ${DUMP_IMPAGES_FILES})
-add_executable(TestFindRect ${TEST_FIND})
+#add_executable(TestFindRect ${TEST_FIND})
+add_executable(MakeSamples ${MAKE_SAPLES} )
 
 target_link_libraries(NeuralNetworkCaffeTest
         ${PROTOBUF_LIBRARIES}
@@ -53,6 +58,12 @@ target_link_libraries(DumpImages
         ${LMDB_LIBRARIES}
         )
 
-target_link_libraries(TestFindRect
+#target_link_libraries(TestFindRect
+#        ${OpenCV_LIBS}
+#        )
+
+target_link_libraries(MakeSamples
+        ${PROTOBUF_LIBRARIES}
         ${OpenCV_LIBS}
+        ${LMDB_LIBRARIES}
         )
