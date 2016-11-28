@@ -9,7 +9,7 @@ base_lr: 0.001
 weight_decay: 0.0005
 lr_policy: "fixed"
 # The maximum number of iterations
-max_iter: 500000
+max_iter: 5000000
 solver_mode: GPU
 type: "Adam"
 

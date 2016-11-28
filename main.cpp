@@ -100,14 +100,14 @@ int main(int argc, char **argv) {
 
     mdb_env_create(&env);
 
-    mdb_env_set_mapsize(env, 100*1024*1024);
+    mdb_env_set_mapsize(env, 1000*1024*1024);
 
     mdb_env_open(env, argv[2], 0, 0664);
     mdb_txn_begin(env, NULL, 0, &txn);
     mdb_open(txn, NULL, 0, &dbi);
 
     mdb_env_create(&env_test);
-    mdb_env_set_mapsize(env_test, 10*1024*1024);
+    mdb_env_set_mapsize(env_test, 100*1024*1024);
 
     mdb_env_open(env_test, (argv[2]+string(".test")).c_str(), 0, 0664);
     mdb_txn_begin(env_test, NULL, 0, &txn_test);
