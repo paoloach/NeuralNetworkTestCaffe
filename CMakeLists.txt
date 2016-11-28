@@ -1,12 +1,15 @@
 cmake_minimum_required(VERSION 3.6)
 project(NeuralNetworkCaffeTest)
 
+include(ExternalProject)
 
-set (CAFFE_DIR_INCLUDE /home/paolo/workspace/caffe/include)
+
+set (CAFFE_DIR_INCLUDE /home/paolo/workspace/caffe/include /home/paolo/workspace/caffe/cmake-build-debug/include/)
 set (CAFFE_DIR_LIBRARY /home/paolo/workspace/caffe/.build_release/lib)
 
 set (CUDA_INCLUDE_DIR /opt/cuda/include)
 set (CUDA_LIB_DIR /opt/cuda/lib)
+set (CURA_LIB )
 
 include(cmake/Utils.cmake)
 include(cmake/ProtoBuf.cmake)
@@ -15,10 +18,17 @@ find_package(OpenCV COMPONENTS core highgui imgproc imgcodecs)
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories( '.')
 
+include("cmake/FindGlog.cmake")
+include("cmake/FindGFlags.cmake")
+include("cmake/glog.cmake")
+
+find_package(Boost 1.46 REQUIRED COMPONENTS system thread filesystem)
+
 set(LMDB_DIR ./cmake)
 
+find_package(CUDA 5.5 QUIET)
 find_package(LMDB REQUIRED)
-include_directories(SYSTEM ${LMDB_INCLUDE_DIR}  ${CAFFE_DIR_INCLUDE} ${CUDA_INCLUDE_DIR})
+include_directories(SYSTEM ${LMDB_INCLUDE_DIR}  ${CAFFE_DIR_INCLUDE} ${CUDA_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}  ${Boost_INCLUDE_DIR})
 link_directories(${CAFFE_DIR_LIBRARY} ${CUDA_LIB_DIR})
 
 
@@ -91,9 +101,14 @@ target_link_libraries(CountSamples
         )
 
 target_link_libraries(CheckAccurancy
+        caffe
         ${PROTOBUF_LIBRARIES}
         ${OpenCV_LIBS}
         ${LMDB_LIBRARIES}
+        ${CUDA_CUDART_LIBRARY}
+        ${CUDA_CUDA_LIBRARY}
+        ${GLOG_LIBRARIES}
+        ${Boost_LIBRARIES}
         )
 
 
