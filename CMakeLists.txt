@@ -74,13 +74,16 @@ set(MAKE_CHECK_ACCURANCY
         ${proto_hdrs}
         src/CheckAccurancy.cpp)
 
+set(LAYERS_SRC src/layer/MyDataLayer.cpp  )
+set(LAYERS_HEADERS src/layer/MyDataLayer.h)
+
 set (TEST_FIND src/TestFindRect.cpp src/proto/LinePoint.h)
 add_executable(NeuralNetworkCaffeTest ${SOURCE_FILES})
 add_executable(DumpImages ${DUMP_IMPAGES_FILES})
 add_executable(CountSamples ${COUNT_SAMPLES_FILES})
 #add_executable(TestFindRect ${TEST_FIND})
 add_executable(MakeSamples ${MAKE_SAPLES} )
-add_executable(CheckAccurancy ${MAKE_CHECK_ACCURANCY} )
+add_executable(CheckAccurancy ${MAKE_CHECK_ACCURANCY} ${LAYERS_SRC} )
 
 target_link_libraries(NeuralNetworkCaffeTest
         ${PROTOBUF_LIBRARIES}
