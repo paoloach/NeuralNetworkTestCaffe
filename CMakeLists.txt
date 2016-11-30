@@ -72,6 +72,11 @@ set(MAKE_SAPLES
 set(MAKE_CHECK_ACCURANCY
         ${proto_srcs}
         ${proto_hdrs}
+        src/json/jsoncpp.cpp
+        src/json/json/json.h
+        src/json/json/json-forwards.h
+        src/TestImages.cpp
+        src/TestImagesVector.cpp
         src/CheckAccurancy.cpp)
 
 set(LAYERS_SRC src/layer/MyDataLayer.cpp  )
@@ -106,6 +111,8 @@ target_link_libraries(CountSamples
 target_link_libraries(CheckAccurancy
         caffe
         ${PROTOBUF_LIBRARIES}
+        ${GFLAGS_LIBRARIES}
+        ${GLOG_LIBRARIES}
         ${OpenCV_LIBS}
         ${LMDB_LIBRARIES}
         ${CUDA_CUDART_LIBRARY}
