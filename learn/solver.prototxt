@@ -3,13 +3,16 @@
 # The train/test net protocol buffer definition
 net: "net.prototxt"
 test_iter: 2
-test_interval: 40000
+test_interval: 500000
 display: 10000
-base_lr: 0.001
-weight_decay: 0.0005
+base_lr: 0.01
+gamma: 0.1
+stepsize: 20000
+momentum: 0.9
+weight_decay: 0.05
 lr_policy: "fixed"
 # The maximum number of iterations
-max_iter: 5000000
+max_iter: 1000000
 solver_mode: GPU
-type: "Adam"
+type: "SGD"
 

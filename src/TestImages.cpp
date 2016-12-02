@@ -33,7 +33,10 @@ TestImages::TestImages(Json::Value & rootImage) {
 
     for (int x=left; x < right-WIDTH; x+=2){
         for (int y=top; y < bottom-HEIGHT; y+=2){
-            background.push_back(serialize(img(cv::Rect(x, y, WIDTH, HEIGHT))));
+          //  if (points.count({x,y})==0) {
+                auto subImg = img(cv::Rect(x, y, WIDTH, HEIGHT));
+                background.emplace_back(serialize(subImg,0), subImg);
+         //   }
         }
     }
 
@@ -49,12 +52,12 @@ std::vector<TestImages::ImgPoint> TestImages::getPoints(Json::Value &value) {
 
 
 
-caffe::Datum TestImages::serialize(Mat &&subImg) {
+caffe::Datum TestImages::serialize(Mat & subImg,int label) {
     caffe::Datum datum;
-    datum.set_channels(6);
+    datum.set_channels(3);
     datum.set_height(HEIGHT);
     datum.set_width(WIDTH);
-    datum.set_label(0);
+    datum.set_label(label);
 
     std::unique_ptr<uint8_t> data{new uint8_t[WIDTH * HEIGHT * 3]};
     uint8_t *dataIter;

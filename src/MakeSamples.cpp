@@ -10,6 +10,7 @@
 #include <fstream>
 #include "./proto/test.pb.h"
 #include "./json/json/json.h"
+#include <H5Cpp.h>
 
 constexpr int WIDTH = 16;
 constexpr int HEIGHT = 16;
@@ -19,6 +20,7 @@ using std::vector;
 using std::cout;
 using std::endl;
 using namespace cv;
+using namespace H5;
 
 class ImgPoint {
 public:
@@ -75,6 +77,13 @@ vector<string> background = {"images/background1.png",
                              "images/background10.png",
                              "images/background11.png"};
 
+
+
+//vector<string> typeImagesPath = {"images/circleGreen.png", "images/squareYellow.png",};
+//vector<string> background = {"images/background1.png"};
+
+
+
 Mat addBackround(Mat &mat, Mat &mat1);
 
 void add(Mat &bg, Mat &mat, int left, int top);
@@ -106,6 +115,8 @@ int main(int argc, char **argv) {
 
     struct MDB_envinfo current_info;
 
+
+
     MDB_dbi dbi;
     MDB_txn *txn = nullptr;
     int counter = 0;
@@ -133,6 +144,7 @@ int main(int argc, char **argv) {
     }
 
     type=1;
+    int coounter=0;
     for (auto &image: images) {
         for (auto &other: images) {
             if (&image != &other) {
@@ -143,19 +155,23 @@ int main(int argc, char **argv) {
                             auto bg = imageBG.clone();
                             add(bg, image, 0, 0);
                             add(bg, other, x,y);
+                            counter ++;
                             data.push_back(serialize(std::move(bg(cv::Rect(0,0,WIDTH,HEIGHT))), type));
                             bg = imageBG.clone();
                             add(bg, image, WIDTH, 0);
                             add(bg, other, x+2,y+2);
-                            data.push_back(serialize(std::move(bg(cv::Rect(0,0,WIDTH,HEIGHT))), type));
+                            counter ++;
+                            data.push_back(serialize(std::move(bg(cv::Rect(WIDTH,0,WIDTH,HEIGHT))), type));
                             bg = imageBG.clone();
                             add(bg, image, 0, HEIGHT);
                             add(bg, other, x,y);
-                            data.push_back(serialize(std::move(bg(cv::Rect(0,0,WIDTH,HEIGHT))), type));
+                            counter ++;
+                            data.push_back(serialize(std::move(bg(cv::Rect(0,HEIGHT,WIDTH,HEIGHT))), type));
                             bg = imageBG.clone();
                             add(bg, image, WIDTH, HEIGHT);
                             add(bg, other, x+2,y+2);
-                            data.push_back(serialize(std::move(bg(cv::Rect(0,0,WIDTH,HEIGHT))), type));
+                            counter ++;
+                            data.push_back(serialize(std::move(bg(cv::Rect(WIDTH,HEIGHT,WIDTH,HEIGHT))), type));
                         }
                     }
                 }

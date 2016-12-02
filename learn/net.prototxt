@@ -10,7 +10,7 @@ layer {
 
   data_param {
     source: "../data.mbd"
-    batch_size: 100
+    batch_size: 300
     backend: LMDB
   }
 }
@@ -97,25 +97,9 @@ layer {
 }
 
 layer {
-  name: "ip2"
-  type: "InnerProduct"
-  bottom: "ip1"
-  top: "ip2"
-  param {
-    lr_mult: 1
-  }
-  param {
-    lr_mult: 2
-  }
-  inner_product_param {
-    num_output: 6
-  }
-}
-
-layer {
   name: "accuracy"
   type: "Accuracy"
-  bottom: "ip2"
+  bottom: "ip1"
   bottom: "label"
   top: "accuracy"
   include {
@@ -125,7 +109,7 @@ layer {
 layer {
   name: "loss"
   type: "SoftmaxWithLoss"
-  bottom: "ip2"
+  bottom: "ip1"
   bottom: "label"
   top: "loss"
 }

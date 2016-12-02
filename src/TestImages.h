@@ -6,14 +6,12 @@
 #define NEURALNETWORKCAFFETEST_TESTIMAGES_H
 
 #include <vector>
+#include <tuple>
 #include <caffe/proto/caffe.pb.h>
+#include <opencv2/opencv.hpp>
 
 #include "./proto/test.pb.h"
 #include "./json/json/json.h"
-
-namespace cv {
-    class Mat;
-}
 
 class TestImages {
     class ImgPoint {
@@ -44,11 +42,11 @@ public:
     static int HEIGHT;
 
     size_t size() {return background.size();}
-    caffe::Datum get(int index){return background[index];}
+    std::tuple<caffe::Datum, cv::Mat> get(int index){return background[index];}
 private:
-    caffe::Datum serialize(cv::Mat &&subImg);
+    caffe::Datum serialize(cv::Mat &subImg, int label);
     std::vector<ImgPoint> getPoints(Json::Value &value);
-    std::vector<caffe::Datum> background;
+    std::vector<std::tuple<caffe::Datum, cv::Mat>> background;
     std::set<ImgPoint> points;
     int left;
     int right;

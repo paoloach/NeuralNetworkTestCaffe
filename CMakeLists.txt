@@ -5,7 +5,7 @@ include(ExternalProject)
 
 
 set (CAFFE_DIR_INCLUDE /home/paolo/workspace/caffe/include /home/paolo/workspace/caffe/cmake-build-debug/include/)
-set (CAFFE_DIR_LIBRARY /home/paolo/workspace/caffe/.build_release/lib)
+set (CAFFE_DIR_LIBRARY /home/paolo/workspace/caffe/cmake-build-debug/lib/)
 
 set (CUDA_INCLUDE_DIR /opt/cuda/include)
 set (CUDA_LIB_DIR /opt/cuda/lib)
@@ -30,6 +30,9 @@ find_package(CUDA 5.5 QUIET)
 find_package(LMDB REQUIRED)
 include_directories(SYSTEM ${LMDB_INCLUDE_DIR}  ${CAFFE_DIR_INCLUDE} ${CUDA_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS}  ${Boost_INCLUDE_DIR})
 link_directories(${CAFFE_DIR_LIBRARY} ${CUDA_LIB_DIR})
+
+find_package(HDF5 COMPONENTS HL REQUIRED)
+include_directories(SYSTEM ${HDF5_INCLUDE_DIRS} ${HDF5_HL_INCLUDE_DIR})
 
 
 
@@ -109,7 +112,7 @@ target_link_libraries(CountSamples
         )
 
 target_link_libraries(CheckAccurancy
-        caffe
+        caffe-d
         ${PROTOBUF_LIBRARIES}
         ${GFLAGS_LIBRARIES}
         ${GLOG_LIBRARIES}
@@ -130,4 +133,5 @@ target_link_libraries(MakeSamples
         ${PROTOBUF_LIBRARIES}
         ${OpenCV_LIBS}
         ${LMDB_LIBRARIES}
+        ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES}
         )

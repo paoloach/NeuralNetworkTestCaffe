@@ -13,6 +13,16 @@ TestImagesVector::TestImagesVector(std::string &filename) :indexVector(0), index
 
     iStream >> root;
 
+    for (auto & child: root){
+        auto types = child["type"];
+        for (auto &type: types) {
+            auto label = type.begin().key().asString();
+            if (mapTypes.count(label) == 0){
+                mapTypes[label] = mapTypes.size()+1;
+            }
+        }
+    }
+
     for (auto &child: root) {
         testImages.emplace_back(child);
     }
@@ -27,7 +37,7 @@ size_t TestImagesVector::size() {
     return s;
 }
 
-caffe::Datum TestImagesVector::next() {
+std::tuple<caffe::Datum, cv::Mat> TestImagesVector::next() {
     indexImage++;
     if (testImages[indexVector].size() <= indexImage){
         indexImage=0;

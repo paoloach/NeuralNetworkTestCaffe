@@ -14,10 +14,11 @@ public:
     TestImagesVector(std::string &filename);
     size_t  size();
 
-    caffe::Datum next();
+    std::tuple<caffe::Datum, cv::Mat> next();
 
 private:
     std::vector<TestImages> testImages;
+    std::map<std::string, int> mapTypes;
     uint32_t indexVector;
     uint32_t indexImage;
 };
