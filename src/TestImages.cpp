@@ -9,11 +9,11 @@ using namespace cv;
 using std::string;
 
 
-int TestImages::WIDTH=16;
-int TestImages::HEIGHT=16;
+int TestImages::WIDTH = 16;
+int TestImages::HEIGHT = 16;
 
 
-TestImages::TestImages(Json::Value & rootImage) {
+TestImages::TestImages(Json::Value &rootImage) {
     left = rootImage["left"].asInt();
     right = rootImage["right"].asInt();
     top = rootImage["top"].asInt();
@@ -31,12 +31,12 @@ TestImages::TestImages(Json::Value & rootImage) {
         points.insert(newPoints.begin(), newPoints.end());
     }
 
-    for (int x=left; x < right-WIDTH; x+=2){
-        for (int y=top; y < bottom-HEIGHT; y+=2){
-          //  if (points.count({x,y})==0) {
+    for (int x = left; x < right - WIDTH; x += 2) {
+        for (int y = top; y < bottom - HEIGHT; y += 2) {
+            if (points.count({x, y}) == 0) {
                 auto subImg = img(cv::Rect(x, y, WIDTH, HEIGHT));
-                background.emplace_back(serialize(subImg,0), subImg);
-         //   }
+                background.emplace_back(serialize(subImg, 0), subImg);
+            }
         }
     }
 
@@ -51,8 +51,7 @@ std::vector<TestImages::ImgPoint> TestImages::getPoints(Json::Value &value) {
 }
 
 
-
-caffe::Datum TestImages::serialize(Mat & subImg,int label) {
+caffe::Datum TestImages::serialize(Mat &subImg, int label) {
     caffe::Datum datum;
     datum.set_channels(3);
     datum.set_height(HEIGHT);

@@ -4,38 +4,34 @@
 
 
 #include "caffe/blob.hpp"
-#include "caffe/common.hpp"
 #include "caffe/filler.hpp"
 #include "caffe/layer.hpp"
-#include "caffe/layer_factory.hpp"
 #include "caffe/net.hpp"
 #include "caffe/parallel.hpp"
-#include "caffe/solver.hpp"
-#include "caffe/solver_factory.hpp"
 #include "caffe/util/benchmark.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/util/upgrade_proto.hpp"
 #include <caffe/layers/memory_data_layer.hpp>
+#include <caffe/layers/inner_product_layer.hpp>
 
-#include "caffe/proto/caffe.pb.h"
-#include "cuda.h"
 #include "TestImagesVector.h"
+
+
+// ----------------------------------------------------------------
+//  Check the learning parameters (in the dataFile file)
 
 using std::vector;
 using std::string;
 using namespace caffe;
 using boost::dynamic_pointer_cast;
+using boost::shared_ptr;
 
 
-static std::string modelName = "./learn/net.prototxt";
+
 static std::string modelNameTest = "./learn/net-memory.prototxt";
-static std::string solverName = "./learn/solver.prototxt";
-static std::string snapshot = "_iter_146798.caffemodel";
+static std::string snapshot = "./learn/adam_iter_1000000.caffemodel";
 static std::string dataFile = "data_min.txt";
-static int iterations = 10000;
 
-
-caffe::LayerParameter * findLayer(NetParameter & parameter, const string & name);
 
 // Parse GPU ids or use all available devices
 static void get_gpus(vector<int> *gpus) {
@@ -66,32 +62,13 @@ int test() {
     Caffe::SetDevice(gpus[0]);
     Caffe::set_mode(Caffe::GPU);
     // Instantiate the caffe net.
-
-
-
-    caffe::SolverParameter solver_param;
-    solver_param.mutable_train_state()->set_level(1);
-    solver_param.set_solver_mode(caffe::SolverParameter_SolverMode_GPU);
-    solver_param.set_device_id(gpus[0]);
-    solver_param.set_base_lr(0.001);
-    solver_param.set_weight_decay(0.0005);
-    solver_param.set_type("Adam");
-    solver_param.set_net(modelNameTest);
-
-    auto solverRegistry = caffe::SolverRegistry<float>::CreateSolver(solver_param);
-    shared_ptr<caffe::Solver<float> > solver(solverRegistry);
-   // solver->Restore(snapshot.c_str());
-
     Net<float> netTest(modelNameTest, Phase::TEST);
-    //solver->net()->ShareTrainedLayersWith(&netText);
-   // netTest.ShareTrainedLayersWith(solver->net().get());
     netTest.CopyTrainedLayersFrom(snapshot);
-
 
     auto imagestestLayer = dynamic_pointer_cast<MemoryDataLayer<float>>(netTest.layer_by_name("images"));
 
-
-    int totInaccuracy = 0;
+    LOG(INFO) << "Total images: " << testImagesVector.size();
+    int failImages=0;
     for (int i=0; i< testImagesVector.size(); i++) {
         vector<Datum> datum_vector;
         auto testImageElement = testImagesVector.next();
@@ -99,28 +76,43 @@ int test() {
         datum_vector.push_back(datum);
         imagestestLayer->AddDatumVector(datum_vector);
 
-        float accuracy;
-        float loss;
-        const vector<Blob<float> *> &result = netTest.Forward();
-        for (int j = 0; j < result.size(); ++j) {
-            const float *result_vec = result[j]->cpu_data();
-            for (int k = 0; k < result[j]->count(); ++k) {
-                const float score = result_vec[k];
-                const std::string &output_name = netTest.blob_names()[netTest.output_blob_indices()[j]];
-                if (output_name == "accuracy")
-                    accuracy = score;
-                if (output_name == "loss"){
-                    loss = score;
+        const vector<Blob<float> *> &results = netTest.Forward();
+        auto & outputBlobIndices = netTest.output_blob_indices();
+        float expectedLabel = -1;
+        float found[6] {-1,-1,-1,-1,-1,-1};
+        for (int j = 0; j < results.size(); ++j) {
+            const float *data = results[j]->cpu_data();
+            const std::string &blobName = netTest.blob_names()[outputBlobIndices[j]];
+
+            if (blobName == "label"){
+                expectedLabel = data[0];
+            } else if (blobName == "ip1"){
+                for(int i=0; i <6; i++){
+                    found[i] = data[i];
                 }
-                if (accuracy >=0) {
-                    totInaccuracy++;
-                 //   cv::imwrite("imagesTmp/backImg" + std::to_string(totInaccuracy) + ".png", std::get<1>(testImageElement));
-                    LOG(INFO) << "accuracy: " << accuracy << ", loss: " << loss;
-                }
+            } else {
+                LOG(INFO) << "blob name: " << blobName;
             }
         }
+        if (expectedLabel == -1){
+            LOG(WARNING) << "label not found";
+        } else if (found[0] == -1 && found[1] == -1 && found[2] == -1 && found[3] == -1 && found[4] == -1 && found[5] == -1  ){
+            LOG(WARNING) << "lp1 not found";
+        } else {
+
+            auto max = std::max_element(std::begin(found),std::end(found) );
+            int index = max-found;
+            if (index != expectedLabel) {
+                failImages++;
+                LOG(INFO) << "expected: " << expectedLabel << ", found (" << found[0] << "," << found[1] << ","
+                          << found[2] << "," << found[3] << "," << found[4] << "," << found[5] << ")";
+            cv::imwrite("imagesTmp/" + std::to_string(failImages) + "_" + std::to_string(index)+".png",std::get<1>(testImageElement) );
+            }
+        }
+
+
     }
-    LOG(INFO) << "innacuracy: " << totInaccuracy << " on " << testImagesVector.size() << " test images";
+    LOG(INFO) << "Total fail images: " << failImages;
     return 0;
 }
 
