@@ -112,7 +112,7 @@ void addLine(Mat &bg, Scalar colorLine, int left, int top);
 
 void addNoise(Mat &img);
 
-std::tuple<Mat, vector<Mat>>
+std::tuple<vector<Mat>, vector<Mat>>
 createImage(Mat &imageBG, Scalar &colorLine, Mat &imageType, Mat &imageOther, int xOther, int yOther);
 
 void save(const string &dataToWrite, MDB_txn *txn, MDB_dbi &dbi, int &counter);
@@ -162,9 +162,11 @@ int main(int argc, char **argv) {
                                 continue;
                             counter++;
                             auto newImage = createImage(imageBG, colorLine, image, other, x, y);
-                            data.emplace_back(std::get<0>(newImage), typeCounter);
+                            for (auto &image: std::get<0>(newImage)) {
+                                data.emplace_back(image, typeCounter);
+                            }
                             for (auto &bg: std::get<1>(newImage)) {
-                                data.emplace_back(std::get<0>(newImage), 0);
+                                data.emplace_back(bg, 0);
                             }
                             counter++;
                         }
@@ -262,25 +264,30 @@ int main(int argc, char **argv) {
     cout << "finished" << endl;
 }
 
-std::tuple<Mat, vector<Mat>>
+std::tuple<vector<Mat>, vector<Mat>>
 createImage(Mat &imageBG, Scalar &colorLine, Mat &imageType, Mat &imageOther, int xOther, int yOther) {
     Mat bg = imageBG.clone();
     vector<Mat> background;
+    vector<Mat> images;
     addLine(bg, colorLine, WIDTH / 2, HEIGHT / 2);
     add(bg, imageType, WIDTH / 2, HEIGHT / 2);
     add(bg, imageOther, xOther, yOther);
-    Mat image = bg(cv::Rect(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT));
-    addNoise(image);
+    Mat imageTmp = bg(cv::Rect(WIDTH / 2, HEIGHT / 2, WIDTH, HEIGHT));
+    for (int i = 0; i < 10; i++) {
+        Mat image = imageTmp.clone();
+        addNoise(image);
+        images.push_back(image);
+    }
     for (int x = std::max(xOther, WIDTH / 2); x > std::min(xOther, WIDTH / 2); x-=2) {
         for (int y = std::max(yOther, HEIGHT / 2); y > std::min(yOther, HEIGHT / 2); y-=2) {
             if (x >= 0 && y >= 0 && x < WIDTH && y < HEIGHT) {
-                Mat bgImg = bg(cv::Rect(x, y, WIDTH, HEIGHT));
-                //       addNoise(bgImg);
+                Mat bgImg = bg(cv::Rect(x, y, WIDTH, HEIGHT)).clone();
+                addNoise(bgImg);
                 background.push_back(bgImg);
             }
         }
     }
-    return std::make_tuple(image, background);
+    return std::make_tuple(images, background);
 }
 
 void save(const string &dataToWrite, MDB_txn *txn, MDB_dbi &dbi, int &counter) {
@@ -313,17 +320,19 @@ Mat addBackround(Mat &mat, Mat &background) {
 }
 
 void addNoise(Mat &img) {
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 30; i++) {
         Point point(uniform_dist_0_WIDTH(randomEngine), uniform_dist_0_HEIGHT(randomEngine));
         int channel = uniform_dist_0_channel(randomEngine);
         int delta = uniform_dist_0_delta(randomEngine);
-        auto &color = img.at<Vec4b>(point);
-        if (color[channel] + delta < 0) {
-            color[channel] = 0;
-        } else if (color[channel] + delta > 255) {
-            color[channel] = 255;
-        } else {
-            color[channel] += delta;
+        if (point.x >=0 && point.x < img.cols && point.y >= 0 && point.y < img.rows) {
+            auto &color = img.at<Vec4b>(point);
+            if (color[channel] + delta < 0) {
+                color[channel] = 0;
+            } else if (color[channel] + delta > 255) {
+                color[channel] = 255;
+            } else {
+                color[channel] += delta;
+            }
         }
     }
 }
@@ -335,7 +344,8 @@ void add(Mat &bg, Mat &mat, int left, int top) {
         for (y = top, ym = 0; y < std::min(top + HEIGHT, bg.rows); y++, ym++) {
             auto pixel = mat.at<Vec4b>(cv::Point(xm, ym));
             if (pixel.val[3] > 128) {
-                bg.at<Vec4b>(cv::Point(x, y)) = pixel;
+                if (x>=0 && x < bg.cols && y >= 0 && y < bg.rows)
+                    bg.at<Vec4b>(cv::Point(x, y)) = pixel;
             }
         }
     }

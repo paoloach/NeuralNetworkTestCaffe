@@ -1,32 +1,30 @@
 name: "images"
 layer {
   name: "images"
-  type: "Data"
+  type: "HDF5Data"
   top: "data"
   top: "label"
   include {
     phase: TRAIN
   }
 
-  data_param {
-    source: "../data.mbd"
+  hdf5_data_param {
+    source: "../hd5files2.txt"
     batch_size: 300
-    backend: LMDB
   }
 }
 layer {
   name: "imagestest"
-  type: "Data"
+  type: "HDF5Data"
   top: "data"
   top: "label"
   include {
     phase: TEST
   }
 
-  data_param {
-    source: "../data.mbd.test"
-    batch_size: 1000
-    backend: LMDB
+  hdf5_data_param {
+    source: "hdf5files.txt"
+    batch_size: 100
   }
 }
 

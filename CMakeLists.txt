@@ -4,8 +4,8 @@ project(NeuralNetworkCaffeTest)
 include(ExternalProject)
 
 
-set (CAFFE_DIR_INCLUDE /home/paolo/workspace/caffe/include /home/paolo/workspace/caffe/cmake-build-debug/include/)
-set (CAFFE_DIR_LIBRARY /home/paolo/workspace/caffe/cmake-build-debug/lib/)
+set (CAFFE_DIR_INCLUDE /usr/include/refcblas/ /home/paolo/workspace/caffe/include /home/paolo/workspace/caffe/.build_release/src/)
+set (CAFFE_DIR_LIBRARY /home/paolo/workspace/caffe/lib/)
 
 set (CUDA_INCLUDE_DIR /opt/cuda/include)
 set (CUDA_LIB_DIR /opt/cuda/lib)
@@ -34,7 +34,7 @@ link_directories(${CAFFE_DIR_LIBRARY} ${CUDA_LIB_DIR})
 find_package(HDF5 COMPONENTS HL REQUIRED)
 include_directories(SYSTEM ${HDF5_INCLUDE_DIRS} ${HDF5_HL_INCLUDE_DIR})
 
-
+#SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -fsanitize=address" )
 
 set(proto_files
         proto/test.proto)
@@ -82,6 +82,13 @@ set(MAKE_CHECK_ACCURANCY
         src/TestImagesVector.cpp
         src/CheckAccurancy.cpp)
 
+set(POLLINI_SRC
+        src/Pollini.cpp
+        ${proto_hdrs}
+        ${proto_srcs}
+
+        )
+
 set(LAYERS_SRC src/layer/MyDataLayer.cpp  )
 set(LAYERS_HEADERS src/layer/MyDataLayer.h)
 
@@ -92,6 +99,7 @@ add_executable(CountSamples ${COUNT_SAMPLES_FILES})
 #add_executable(TestFindRect ${TEST_FIND})
 add_executable(MakeSamples ${MAKE_SAPLES} )
 add_executable(CheckAccurancy ${MAKE_CHECK_ACCURANCY} ${LAYERS_SRC} )
+add_executable(Pollini ${POLLINI_SRC})
 
 target_link_libraries(NeuralNetworkCaffeTest
         ${PROTOBUF_LIBRARIES}
@@ -112,6 +120,20 @@ target_link_libraries(CountSamples
         )
 
 target_link_libraries(CheckAccurancy
+        caffe-d
+        ${PROTOBUF_LIBRARIES}
+        ${GFLAGS_LIBRARIES}
+        ${GLOG_LIBRARIES}
+        ${OpenCV_LIBS}
+        ${LMDB_LIBRARIES}
+        ${CUDA_CUDART_LIBRARY}
+        ${CUDA_CUDA_LIBRARY}
+        ${GLOG_LIBRARIES}
+        ${Boost_LIBRARIES}
+        )
+
+
+target_link_libraries(Pollini
         caffe-d
         ${PROTOBUF_LIBRARIES}
         ${GFLAGS_LIBRARIES}

@@ -1,3 +1,12 @@
+*.hdf5
+learn/*.caffe
+Makefile
+cmake_install.cmake
+data.mbd.test/
+data.mbd/
+imagesTmp/
+Pollini
+external
 .idea
 cmake-build-debug/
 

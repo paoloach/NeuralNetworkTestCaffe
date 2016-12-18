@@ -6,7 +6,7 @@ layer {
   top: "label"
 
   memory_data_param {
-    batch_size: 1
+    batch_size: 10
     channels: 3
     height: 16
     width: 16
@@ -80,20 +80,3 @@ layer {
   }
 }
 
-layer {
-  name: "accuracy"
-  type: "Accuracy"
-  bottom: "ip1"
-  bottom: "label"
-  top: "accuracy"
-  include {
-    phase: TEST
-  }
-}
-layer {
-  name: "loss"
-  type: "EuclideanLoss"
-  bottom: "ip1"
-  bottom: "label"
-  top: "loss"
-}
